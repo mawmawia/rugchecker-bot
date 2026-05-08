@@ -5,14 +5,18 @@ import requests
 app = Flask(__name__)
 
 # ====== CONFIG ======
-BIRDEYE_API_KEY = os.environ.get("2e85b256bdb34a42a3b61039d5dec510")  # We'll set this in Railway
+BIRDEYE_API_KEY = "2e85b256bdb34a42a3b61039d5dec510"
 # ====================
 
 @app.route('/')
 def home():
     return jsonify({
         "message": "RugChecker API v3.9.4",
-        "status": "online"
+        "status": "online",
+        "endpoints": {
+            "/check": "GET ?address=0x... for token analysis",
+            "/status": "GET for health check"
+        }
     })
 
 @app.route('/status')
@@ -22,46 +26,34 @@ def status():
 @app.route('/check')
 def check_token():
     address = request.args.get('address')
-    
     if not address:
-        return jsonify({"error": "address parameter required"}), 400
+        return jsonify({"error": "Missing 'address' parameter"}), 400
+
+    url = f"https://public-api.birdeye.so/defi/token_overview?address={address}"
+    headers = {"X-API-KEY": BIRDEYE_API_KEY}
     
     try:
-        # Birdeye API call for Base chain
-        url = f"https://public-api.birdeye.so/defi/token_overview?address={address}"
-        headers = {
-            "X-API-KEY": BIRDEYE_API_KEY,
-            "x-chain": "base"
-        }
-        
         response = requests.get(url, headers=headers, timeout=10)
         data = response.json()
         
-        if data.get('success') and data.get('data'):
-            result = data['data']
+        if data.get("success") and data.get("data"):
+            token_data = data["data"]
             return jsonify({
-                "token_name": result.get('name'),
-                "token_symbol": result.get('symbol'),
-                "total_supply": result.get('supply'),
-                "decimals": result.get('decimals'),
-                "verified": True,
                 "contract_address": address,
-                "price": result.get('price'),
-                "market_cap": result.get('mc'),
-                "flags": []
+                "token_name": token_data.get("name"),
+                "token_symbol": token_data.get("symbol"),
+                "price_usd": token_data.get("price"),
+                "liquidity": token_data.get("liquidity"),
+                "market_cap": token_data.get("mc"),
+                "holder_count": token_data.get("holder"),
+                "verified": True
             })
         else:
-            return jsonify({
-                "error": "Token not found on Birdeye",
-                "contract_address": address
-            }), 404
+            return jsonify({"contract_address": address, "error": "Token not found on Birdeye"}), 404
             
     except Exception as e:
-        return jsonify({
-            "error": "Internal error", 
-            "details": str(e)
-        }), 500
+        return jsonify({"error": "Internal error", "details": str(e)}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port)
