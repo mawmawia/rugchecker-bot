@@ -5,7 +5,7 @@ import requests
 app = Flask(__name__)
 
 # ====== CONFIG ======
-BIRDEYE_API_KEY = os.environ.get("BIRDEYE_API_KEY")  # We'll set this in Railway
+BIRDEYE_API_KEY = os.environ.get("2e85b256bdb34a42a3b61039d5dec510")  # We'll set this in Railway
 # ====================
 
 @app.route('/')
