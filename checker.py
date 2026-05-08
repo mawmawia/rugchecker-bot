@@ -25,7 +25,6 @@ def check_token():
     if not address:
         return jsonify({"error": "Missing 'address' parameter"}), 400
 
-    # DexScreener works for all chains, no API key
     url = f"https://api.dexscreener.com/latest/dex/tokens/{address}"
 
     try:
@@ -33,7 +32,6 @@ def check_token():
         data = response.json()
 
         if data.get("pairs") and len(data["pairs"]) > 0:
-            # Sort by liquidity, take highest
             pairs = sorted(data["pairs"], key=lambda x: float(x.get("liquidity", {}).get("usd", 0)), reverse=True)
             pair = pairs[0]
 
@@ -55,7 +53,7 @@ def check_token():
                 "contract_address": address,
                 "chain": chain,
                 "error": "No trading pairs found",
-                "reason": "Token has no liquidity or doesn't exist"
+                "reason": "Token has no liquidity or address is wrong"
             }), 404
 
     except Exception as e:
