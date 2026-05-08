@@ -7,10 +7,15 @@ app = Flask(__name__)
 @app.route('/')
 def home():
     return jsonify({
-        "message": "RugChecker API v4.0",
+        "message": "RugChecker API v4.1",
         "status": "online",
-        "note": "Now using DexScreener - no API key needed"
+        "note": "Powered by DexScreener - no API key needed",
+        "supported_chains": ["solana", "base", "ethereum"]
     })
+
+@app.route('/status')
+def status():
+    return jsonify({"status": "ok", "service": "RugChecker v4.1"})
 
 @app.route('/check')
 def check_token():
@@ -20,7 +25,7 @@ def check_token():
     if not address:
         return jsonify({"error": "Missing 'address' parameter"}), 400
 
-    # Use DexScreener - free, no key, works for WSOL
+    # DexScreener works for all chains, no API key
     url = f"https://api.dexscreener.com/latest/dex/tokens/{address}"
 
     try:
@@ -28,23 +33,29 @@ def check_token():
         data = response.json()
 
         if data.get("pairs") and len(data["pairs"]) > 0:
-            pair = data["pairs"][0] # Take first trading pair
+            # Sort by liquidity, take highest
+            pairs = sorted(data["pairs"], key=lambda x: float(x.get("liquidity", {}).get("usd", 0)), reverse=True)
+            pair = pairs[0]
+
             return jsonify({
                 "contract_address": address,
                 "chain": chain,
                 "token_name": pair.get("baseToken", {}).get("name"),
                 "token_symbol": pair.get("baseToken", {}).get("symbol"),
-                "price_usd": pair.get("priceUsd"),
-                "liquidity_usd": pair.get("liquidity", {}).get("usd"),
-                "fdv": pair.get("fdv"),
+                "price_usd": float(pair.get("priceUsd", 0)),
+                "liquidity_usd": float(pair.get("liquidity", {}).get("usd", 0)),
+                "fdv": float(pair.get("fdv", 0)),
+                "volume_24h": float(pair.get("volume", {}).get("h24", 0)),
                 "dex": pair.get("dexId"),
+                "pair_address": pair.get("pairAddress"),
                 "verified": True
             })
         else:
             return jsonify({
                 "contract_address": address,
                 "chain": chain,
-                "error": "No trading pairs found"
+                "error": "No trading pairs found",
+                "reason": "Token has no liquidity or doesn't exist"
             }), 404
 
     except Exception as e:
