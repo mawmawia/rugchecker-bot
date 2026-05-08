@@ -11,27 +11,28 @@ BIRDEYE_API_KEY = "d9038446c7b24aaa90ef07b22c719cb7"
 @app.route('/')
 def home():
     return jsonify({
-        "message": "RugChecker API v3.9.4",
+        "message": "RugChecker API v3.9.5",
         "status": "online",
         "endpoints": {
-            "/check": "GET ?address=0x...&chain=base for token analysis",
+            "/check": "GET ?address=...&chain=solana for token price check",
             "/status": "GET for health check"
         }
     })
 
 @app.route('/status')
 def status():
-    return jsonify({"status": "ok", "service": "RugChecker v3.9.4"})
+    return jsonify({"status": "ok", "service": "RugChecker v3.9.5"})
 
 @app.route('/check')
 def check_token():
     address = request.args.get('address')
-    chain = request.args.get('chain', 'base')
+    chain = request.args.get('chain', 'solana')
     
     if not address:
         return jsonify({"error": "Missing 'address' parameter"}), 400
 
-    url = f"https://public-api.birdeye.so/defi/token_overview?address={address}&chain={chain}"
+    # Use /defi/price endpoint - works on free tier
+    url = f"https://public-api.birdeye.so/defi/price?address={address}"
     headers = {"X-API-KEY": BIRDEYE_API_KEY}
     
     try:
@@ -39,24 +40,19 @@ def check_token():
         data = response.json()
         
         if data.get("success") and data.get("data"):
-            token_data = data["data"]
             return jsonify({
                 "contract_address": address,
                 "chain": chain,
-                "token_name": token_data.get("name"),
-                "token_symbol": token_data.get("symbol"),
-                "price_usd": token_data.get("price"),
-                "liquidity": token_data.get("liquidity"),
-                "market_cap": token_data.get("mc"),
-                "holder_count": token_data.get("holder"),
-                "verified": True
+                "price_usd": data["data"].get("value"),
+                "verified": True,
+                "note": "Price data from Birdeye free tier"
             })
         else:
             return jsonify({
                 "contract_address": address, 
                 "chain": chain, 
-                "error": "Token not found on Birdeye",
-                "birdeye_message": data.get("message")
+                "error": "Token not found",
+                "birdeye_response": data
             }), 404
             
     except Exception as e:
