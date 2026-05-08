@@ -14,7 +14,7 @@ def home():
         "message": "RugChecker API v3.9.4",
         "status": "online",
         "endpoints": {
-            "/check": "GET ?address=0x... for token analysis",
+            "/check": "GET ?address=0x...&chain=base for token analysis",
             "/status": "GET for health check"
         }
     })
@@ -26,10 +26,12 @@ def status():
 @app.route('/check')
 def check_token():
     address = request.args.get('address')
+    chain = request.args.get('chain', 'base')
+    
     if not address:
         return jsonify({"error": "Missing 'address' parameter"}), 400
 
-    url = f"https://public-api.birdeye.so/defi/token_overview?address={address}"
+    url = f"https://public-api.birdeye.so/defi/token_overview?address={address}&chain={chain}"
     headers = {"X-API-KEY": BIRDEYE_API_KEY}
     
     try:
@@ -40,6 +42,7 @@ def check_token():
             token_data = data["data"]
             return jsonify({
                 "contract_address": address,
+                "chain": chain,
                 "token_name": token_data.get("name"),
                 "token_symbol": token_data.get("symbol"),
                 "price_usd": token_data.get("price"),
@@ -49,7 +52,11 @@ def check_token():
                 "verified": True
             })
         else:
-            return jsonify({"contract_address": address, "error": "Token not found on Birdeye"}), 404
+            return jsonify({
+                "contract_address": address, 
+                "chain": chain, 
+                "error": "Token not found on Birdeye"
+            }), 404
             
     except Exception as e:
         return jsonify({"error": "Internal error", "details": str(e)}), 500
