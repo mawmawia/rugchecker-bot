@@ -5,7 +5,7 @@ import requests
 app = Flask(__name__)
 
 # ====== CONFIG ======
-BIRDEYE_API_KEY = "2e85b256bdb34a42a3b61039d5dec510"
+BIRDEYE_API_KEY = "d9038446c7b24aaa90ef07b22c719cb7"
 # ====================
 
 @app.route('/')
@@ -55,7 +55,8 @@ def check_token():
             return jsonify({
                 "contract_address": address, 
                 "chain": chain, 
-                "error": "Token not found on Birdeye"
+                "error": "Token not found on Birdeye",
+                "birdeye_message": data.get("message")
             }), 404
             
     except Exception as e:
