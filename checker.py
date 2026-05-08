@@ -4,57 +4,49 @@ import requests
 
 app = Flask(__name__)
 
-# ====== CONFIG ======
-BIRDEYE_API_KEY = "d9038446c7b24aaa90ef07b22c719cb7"
-# ====================
-
 @app.route('/')
 def home():
     return jsonify({
-        "message": "RugChecker API v3.9.5",
+        "message": "RugChecker API v4.0",
         "status": "online",
-        "endpoints": {
-            "/check": "GET ?address=...&chain=solana for token price check",
-            "/status": "GET for health check"
-        }
+        "note": "Now using DexScreener - no API key needed"
     })
-
-@app.route('/status')
-def status():
-    return jsonify({"status": "ok", "service": "RugChecker v3.9.5"})
 
 @app.route('/check')
 def check_token():
     address = request.args.get('address')
     chain = request.args.get('chain', 'solana')
-    
+
     if not address:
         return jsonify({"error": "Missing 'address' parameter"}), 400
 
-    # Use /defi/price endpoint - works on free tier
-    url = f"https://public-api.birdeye.so/defi/price?address={address}"
-    headers = {"X-API-KEY": BIRDEYE_API_KEY}
-    
+    # Use DexScreener - free, no key, works for WSOL
+    url = f"https://api.dexscreener.com/latest/dex/tokens/{address}"
+
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, timeout=10)
         data = response.json()
-        
-        if data.get("success") and data.get("data"):
+
+        if data.get("pairs") and len(data["pairs"]) > 0:
+            pair = data["pairs"][0] # Take first trading pair
             return jsonify({
                 "contract_address": address,
                 "chain": chain,
-                "price_usd": data["data"].get("value"),
-                "verified": True,
-                "note": "Price data from Birdeye free tier"
+                "token_name": pair.get("baseToken", {}).get("name"),
+                "token_symbol": pair.get("baseToken", {}).get("symbol"),
+                "price_usd": pair.get("priceUsd"),
+                "liquidity_usd": pair.get("liquidity", {}).get("usd"),
+                "fdv": pair.get("fdv"),
+                "dex": pair.get("dexId"),
+                "verified": True
             })
         else:
             return jsonify({
-                "contract_address": address, 
-                "chain": chain, 
-                "error": "Token not found",
-                "birdeye_response": data
+                "contract_address": address,
+                "chain": chain,
+                "error": "No trading pairs found"
             }), 404
-            
+
     except Exception as e:
         return jsonify({"error": "Internal error", "details": str(e)}), 500
 
